@@ -5,7 +5,7 @@ res-chunk-uploader: https://github.com/pytt-chald/res-chunk-uploader
 
 #Apache configuration
 
-add to apache.conf:
+##add to apache.conf:
 
 WSGIScriptAlias /upload/target/url /path/to/wsgi/file/res_chunks.wsgi
 WSGIPythonPath /path/to/wsgi/file/
@@ -18,7 +18,7 @@ WSGIPythonPath /path/to/wsgi/file/
 
 
 
-example:
+##example:
 
 WSGIScriptAlias /.uploader106/upload /var/www/html/flask/res_chunks.wsgi
 WSGIPythonPath /var/www/html/flask
