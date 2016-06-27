@@ -4,7 +4,7 @@ import os
 import os.path
 import logging
 from flask import Flask,request,abort,redirect,abort
-
+import time
 
 
 UPLOAD_FOLDER='/var/www/html/.uploader106/uploads/'
@@ -22,11 +22,9 @@ try:
 
  @app.route("/",methods=['GET'])
  def check_test_chunk ():
-
 	filename = request.args['resumableIdentifier']+'.'+request.args['resumableChunkNumber']
         filesize = request.args["resumableCurrentChunkSize"]
-        full_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-
+        full_path = os.path.join(app.config['UPLOAD_FOLDER'], filename).encode("utf-8")
 
 	if (os.path.isfile(full_path) and int(os.path.getsize(full_path))==int(filesize)):
 		return "OK",200
@@ -38,10 +36,10 @@ try:
 
  	filename = request.form['resumableIdentifier']+'.'+request.form['resumableChunkNumber']
  	filesize = request.form["resumableCurrentChunkSize"]
- 	full_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+ 	full_path = os.path.join(app.config['UPLOAD_FOLDER'], filename).encode("utf-8")
 
        	file = request.files['file']
-        file.save( os.path.join(app.config['UPLOAD_FOLDER'], filename) )
+        file.save(full_path)
 
         return "OK",200
 
@@ -49,18 +47,23 @@ try:
 
  @app.route("/merge",methods=['POST','GET'])
  def merge_chunks ():
-
-	filename=str(request.args["filename"])
+	merge_start = time.time()
+	filename= request.args["filename"]
 	chunks_num=request.args["chunks_num"]
+	chunk_size=request.args["chunk_size"]
+	full_path = os.path.join(app.config['UPLOAD_FOLDER'], filename).encode("utf-8")
 
-	with open(app.config['UPLOAD_FOLDER']+filename,"wb") as wf:
+	with open(full_path,"wb") as wf:
         	for i in range(1,int(chunks_num)+1):
-                	with open(app.config['UPLOAD_FOLDER']+filename+"."+str(i),"rb") as chunk:
+                	with open(full_path+"."+str(i),"rb") as chunk:
                         	for line in chunk:
                                 	wf.write(line)
-                	os.remove(app.config['UPLOAD_FOLDER']+filename+"."+str(i))
+                	os.remove(full_path+"."+str(i))
+#	os.system("cat "+full_path+".* >> "+full_path+".CAT")	
 
-	return "OK",200
+	merge_end= time.time()
+	time_elapsed=merge_end-merge_start
+	return str(time_elapsed)+":"+chunks_num+":"+chunk_size,200
 
 
 except:
