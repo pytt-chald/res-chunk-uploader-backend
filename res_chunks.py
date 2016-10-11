@@ -22,24 +22,62 @@ try:
 
  @app.route("/",methods=['GET'])
  def check_test_chunk ():
-	filename = request.args['resumableIdentifier']+'.'+request.args['resumableChunkNumber']
+	filename = request.args["resumableChunkSize"]+'.'+request.args['resumableIdentifier']+'.'+request.args['resumableChunkNumber']
         filesize = request.args["resumableCurrentChunkSize"]
         full_path = os.path.join(app.config['UPLOAD_FOLDER'], filename).encode("utf-8")
+	
+	ex_file=os.path.join(UPLOAD_FOLDER,request.args["resumableChunkSize"]+'.'+request.args['resumableIdentifier']+".ex.txt").encode("utf-8")
+        chunk_number=int(request.args['resumableChunkNumber'])
 
-	if (os.path.isfile(full_path) and int(os.path.getsize(full_path))==int(filesize)):
-		return "OK",200
+	if(os.path.isfile(ex_file)==False):
+        	return "Not Found",404
+
 	else:
-		return "Not Found",404
+               f = open(ex_file, "r")
+               try:
+                       ex=f.read()
+                       if(ex[chunk_number-1]=='1'):
+                               return "OK",200
+                       else:
+                               return "Not Found",404
+               finally:
+                       f.close()
 
  @app.route("/",methods=['POST'])
  def store_recieved_chunk ():
 
- 	filename = request.form['resumableIdentifier']+'.'+request.form['resumableChunkNumber']
+ 	filename = request.form['resumableChunkSize']+'.'+request.form['resumableIdentifier']+'.'+request.form['resumableChunkNumber']
  	filesize = request.form["resumableCurrentChunkSize"]
- 	full_path = os.path.join(app.config['UPLOAD_FOLDER'], filename).encode("utf-8")
+	full_path = os.path.join(app.config['UPLOAD_FOLDER'], filename).encode("utf-8")
+	chunks= int( float(request.form['resumableTotalSize']) / float(request.form['resumableChunkSize']))+1
 
-       	file = request.files['file']
-        file.save(full_path)
+	ex_file=os.path.join(UPLOAD_FOLDER,request.form['resumableChunkSize']+'.'+request.form['resumableIdentifier']+".ex.txt").encode("utf-8")
+	final_file=os.path.join(UPLOAD_FOLDER,request.form['resumableChunkSize']+'.'+request.form['resumableIdentifier']).encode("utf-8")
+
+ 	chunk_number=int(request.form['resumableChunkNumber'])
+
+	if(os.path.isfile(ex_file)==False):
+                f = open(ex_file, "w+")
+                for i in range (0,chunks):
+                        f.write('0')
+                f.close()
+		f = open(final_file, "w+") #creates file		
+                f.close()
+	
+        file = request.files['file']
+
+	with open(final_file, "rb+") as f:
+		f.seek((chunk_number-1)*float(request.form["resumableChunkSize"]))
+                while True:
+                        packet=file.read(1000)
+                        if not packet:
+                                break
+                        f.write(str(packet))
+
+        f = open(ex_file, "r+")
+        f.seek(chunk_number-1)
+        f.write('1')
+        f.close()
 
         return "OK",200
 
@@ -47,23 +85,13 @@ try:
 
  @app.route("/merge",methods=['POST','GET'])
  def merge_chunks ():
-	merge_start = time.time()
-	filename= request.args["filename"]
+	filename= request.args["chunk_size"]+'.'+request.args["filename"]
 	chunks_num=request.args["chunks_num"]
 	chunk_size=request.args["chunk_size"]
 	full_path = os.path.join(app.config['UPLOAD_FOLDER'], filename).encode("utf-8")
 
-	with open(full_path,"wb") as wf:
-        	for i in range(1,int(chunks_num)+1):
-                	with open(full_path+"."+str(i),"rb") as chunk:
-                        	for line in chunk:
-                                	wf.write(line)
-                	os.remove(full_path+"."+str(i))
-#	os.system("cat "+full_path+".* >> "+full_path+".CAT")	
-
-	merge_end= time.time()
-	time_elapsed=merge_end-merge_start
-	return str(time_elapsed)+":"+chunks_num+":"+chunk_size,200
+	os.remove(full_path+".ex.txt")
+	return chunks_num+":"+chunk_size,200
 
 
 except:
